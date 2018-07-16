@@ -19,7 +19,7 @@ setuptools.setup(
     # python_requires='>=3.5',
     install_requires=[],
     packages=['start_th'],
-    package_dir={'': 'python'},
+    package_dir={'': 'src'},
     entry_points = {
         'console_scripts': [ 'start-tester = start_th.cli:main' ]
     }
