@@ -97,13 +97,3 @@ class SITL(object):
         if self.__process:
             os.killpg(self.__process.pid, signal.SIGTERM)
         self.__process = None
-
-
-if __name__ == '__main__':
-    cfg = configparser.SafeConfigParser()
-    assert os.path.isfile('/experiment/config/scenario.cfg'), \
-        "cfg file does not exist"
-
-    cfg.read('/experiment/config/scenario.cfg')
-    sitl = SITL.from_cfg(cfg)
-    print(sitl.command)
