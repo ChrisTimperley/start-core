@@ -5,33 +5,50 @@ import os
 import tempfile
 import time
 
+import attr
+import configparser
+
+
+@attr.s(frozen=True)
+class Attack(object):
+    """
+    Provides an immutable description of an attack (i.e., an exploit) that may
+    be performed.
+    """
+    script = attr.ib(type=str)
+    flags = attr.ib(type=str)
+    longitude = attr.ib(type=float)
+    latitude = attr.ib(type=float)
+    radius = attr.ib(type=float)
+
 
 class Attacker(object):
+    """
+    Responsible for launching a given attack on a vehicle.
+    """
     @staticmethod
-    def from_cfg(cfg):
-        return Attacker(script='attack.py',
+    def from_cfg(cfg  # type: configparser.SafeConfigParser
+                 ):  # type: Attacker
+        # FIXME obtain absolute path
+        attack = Attack(script='attack.py',
                         flags=cfg.get('Attack', 'script_flags'),
                         longitude=cfg.getfloat('Attack', 'longitude'),
                         latitude=cfg.getfloat('Attack', 'latitude'),
-                        radius=cfg.getfloat('Attack', 'radius'),
-                        port=16666, # we can just run the attack server on a fixed port
-                        url_sitl='127.0.0.1:14551') # FIXME the SITL should also be at a fixed URL
+                        radius=cfg.getfloat('Attack', 'radius'))
+        attacker = Attacker(attack,
+                            port=16666, # we can just run the attack server on a fixed port
+                            url_sitl='127.0.0.1:14551') # FIXME the SITL should also be at a fixed URL
+        return attacker
 
     def __init__(self,
-                 script,
-                 flags,
-                 longitude,
-                 latitude,
-                 radius,
-                 url_sitl,
-                 port):
-        self.__script = "/experiment/attack.py" # script
+                 attack,  # type: Attack
+                 url_sitl,  # type: str
+                 port  # type: int
+                 ):  # type: None
+        self.__attack = attack
         self.__url_sitl = url_sitl
         self.__port = port
-        self.__script_flags = flags.strip()
-        self.__longitude = longitude
-        self.__latitude = latitude
-        self.__radius = radius
+
         # FIXME I can't find any documentation or examples for this parameter.
         # The default value in START is -1.
         # From looking at an example attack script, it would seem that this
@@ -48,13 +65,14 @@ class Attacker(object):
         self.__socket = None
         self.__process = None
 
-    def prepare(self):
+    def prepare(self):  # type: None
+        attack = self.__attack
         self.__fn_log = tempfile.NamedTemporaryFile()
         self.__fn_mav = tempfile.NamedTemporaryFile()
 
         cmd = [
             'python',
-            self.__script,
+            attack.script,
             "--master=udp:{}".format(self.__url_sitl),
             "--baudrate=115200",
             "--port={}".format(self.__port),
@@ -64,10 +82,10 @@ class Attacker(object):
         ]
 
         if self.__script_flags != '':
-            tokens = self.__script_flags.split(",")
+            tokens = attack.flags.split(",")
             cmd.extend(tokens)
 
-        cmd.extend([self.__latitude, self.__longitude, self.__radius])
+        cmd.extend([attack.latitude, attack.longitude, attack.radius])
         cmd = [str(s) for s in cmd]
         cmd = ' '.join(cmd)
 
@@ -86,11 +104,11 @@ class Attacker(object):
         self.__socket .connect(("0.0.0.0", self.__port))
         self.__connection = self.__socket.makefile()
 
-    def start(self):
+    def start(self):  # type: None
         self.__connection.write("START\n")
         self.__connection.flush()
 
-    def stop(self):
+    def stop(self):  # type: None
         # close connection
         if self.__connection:
             self.__connection.write("EXIT\n")
@@ -114,7 +132,7 @@ class Attacker(object):
         self.__fn_log = None
         self.__fn_mav = None
 
-    def was_successful(self):
+    def was_successful(self):  # type: bool
         self.__connection.write("CHECK\n")
         self.__connection.flush()
 

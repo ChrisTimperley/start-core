@@ -15,7 +15,7 @@ import dronekit
 
 import sitl
 import mission
-import attacker
+import attack
 import helper
 
 
@@ -67,7 +67,7 @@ class TestCase(object):
                                       fn=fn_mission)
 
         if use_attacker:
-            self.__attacker = attacker.Attacker.from_cfg(self.__cfg)
+            self.__attacker = attack.Attacker.from_cfg(self.__cfg)
         else:
             self.__attacker = None
 

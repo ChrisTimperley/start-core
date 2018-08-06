@@ -18,7 +18,8 @@ setuptools.setup(
     url='https://github.com/ChrisTimperley/start-test-harness',
     # python_requires='>=3.5',
     install_requires=[
-        'configparser'
+        'configparser',
+        'attrs'
     ],
     packages=['start_th'],
     package_dir={'': 'src'},
