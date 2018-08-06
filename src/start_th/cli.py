@@ -84,7 +84,7 @@ def main():
                            action='store_true')
     g_execute.add_argument('--source-dir',
                            type=str,
-                           default='/experiment/source',
+                           default='/opt/ardupilot',
                            help='the absolute path to the ArduPilot source directory for the system under test.')
     g_execute.add_argument('--connection-timeout',
                            type=int,
