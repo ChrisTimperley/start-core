@@ -25,7 +25,7 @@ class TestCase(object):
                  use_attacker = False, # type: Optional[bool]
                  fn_cfg_scenario = None, # type: Optional[str]
                  fn_cfg_default = None, # type: Optional[str]
-                 dir_source = '/experiment/source', # type: Optional[str],
+                 dir_source = '/opt/ardupilot', # type: Optional[str],
                  connection_timeout = 10, # type: Optional[int],
                  home = None # type: Optional[Tuple[float, float, float, float]]
                  ): # type: None
