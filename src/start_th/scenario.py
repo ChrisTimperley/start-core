@@ -19,7 +19,6 @@ class Scenario(object):
     sitl = attr.ib(type=SITL)
     mission = attr.ib(type=Mission)
     attack = attr.ib(type=Attack)
-    source = attr.ib(type=str)  # we need information about the source
 
     @staticmethod
     def from_file(fn  # type: str
@@ -60,6 +59,6 @@ class Scenario(object):
                                     sitl.vehicle_kind,
                                     fn_mission)
         return Scenario(directory=dir_cfg,
+                        sitl=sitl,
                         mission=mission,
-                        attack=attack,
-                        source=dir_source)
+                        attack=attack)
