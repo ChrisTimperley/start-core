@@ -15,6 +15,7 @@ class Scenario(object):
     """
     Provides an immutable description of a START defect scenario.
     """
+    name = attr.ib(type=str)
     directory = attr.ib(type=str)
     sitl = attr.ib(type=SITL)
     mission = attr.ib(type=Mission)
@@ -58,7 +59,8 @@ class Scenario(object):
         mission = Mission.from_file(sitl.home_location,
                                     sitl.vehicle_kind,
                                     fn_mission)
-        return Scenario(directory=dir_cfg,
+        return Scenario(name=cfg.get('General', 'name'),
+                        directory=dir_cfg,
                         sitl=sitl,
                         mission=mission,
                         attack=attack)
