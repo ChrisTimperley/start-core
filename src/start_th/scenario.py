@@ -32,7 +32,9 @@ class Scenario(object):
             raise FileNotFoundError(msg)
 
         cfg = configparser.SafeConfigParser()
-        cfg.read(DEFAULT_CONFIG_FILE)  # FIXME
+        fn_cfg = os.path.join(os.path.dirname(__file__),
+                              'config/scenario.default.config')
+        cfg.read(fn_cfg)
         cfg.read(fn)
         return Scenario.from_config(fn, cfg)
 

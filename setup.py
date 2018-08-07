@@ -21,8 +21,15 @@ setuptools.setup(
         'configparser',
         'attrs'
     ],
+    include_package_data=True,
     packages=['start_th'],
     package_dir={'': 'src'},
+    package_data={
+        '': ['scenario.config.DEFAULT']
+    },
+    py_modules=[
+        splitext(basename(path))[0] for path in glob.glob('start_th/*.py')
+    ],
     entry_points = {
         'console_scripts': [ 'start-tester = start_th.cli:main' ]
     }

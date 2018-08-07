@@ -1,0 +1,73 @@
+################################################################################
+#                  START FRAMEWORK SCENARIO CONFIGURATION FILE                 #
+################################################################################
+
+## General configuration
+[General]
+
+# Name of the scenario [required]
+name =
+
+# Description of the scenario
+# [default value] <empty>
+description = ""
+
+# Directory containing ArduPilot
+# [default value] ardupilot
+ardupilot = ardupilot
+
+# Ardupilot vehicle type to be used in the scenario.  This must be a valid input
+# (see sim_vehicle.[py|sh] --help for valid values)
+# [default value] APMrover2
+vehicle = APMrover2
+
+# Simulation script.  Older version of ArduPilot used `sim_vehicle.sh`, while more
+# recent versions use `sim_vehicle.py`
+# [default value] sim_vehicle.py
+simulation = sim_vehicle.py
+
+## Mission configuration
+[Mission]
+
+# Name of the mission file provided in QGroundControl format
+# [default value] mission.txt
+mission = mission.txt
+
+# Home latitude
+# [default value] 0.0
+latitude = 0.0
+
+# Home longitude
+# [default value] 0.0
+longitude = 0.0
+
+# Home altitude
+# [default value] 0.0
+altitude = 0.0
+
+# Home heading
+# [default value] 0.0
+heading = 0.0
+
+## Attack configuration
+[Attack]
+
+# Name of the python script containing the attack
+# [default value] attack.py
+attack = attack.py
+
+# Latitude of the center point of the attack
+# [default value] 0.0
+latitude = 0.0
+
+# Longitude of the center point of the attack
+# [default value] 0.0
+longitude = 0.0
+
+# Radius of the attack (distance from center point where the attack is active)
+# [default value] 0.0
+radius = 0.0
+
+# Additional command line flags to pass to the attack script
+# [default value] <empty>
+script_flags = ""
