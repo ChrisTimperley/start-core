@@ -19,7 +19,8 @@ setuptools.setup(
     # python_requires='>=3.5',
     install_requires=[
         'configparser',
-        'attrs'
+        'attrs',
+        'dronekit'
     ],
     include_package_data=True,
     packages=['start_core'],
