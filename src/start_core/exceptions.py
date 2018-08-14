@@ -22,3 +22,9 @@ class BadBugZooManifest(STARTException):
     The BugZoo manifest used by START has been corrupted and does not match
     the expected format.
     """
+
+class UnsupportedRevisionException(STARTException):
+    """
+    A given revision of the ArduPilot source code is not supported as a START
+    subject.
+    """
