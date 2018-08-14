@@ -7,6 +7,11 @@ class STARTException(Exception):
     Base class used by all START exceptions.
     """
 
+class FileNotFoundException(STARTException):
+    """
+    A given file could not be found.
+    """
+
 class CLIException(STARTException):
     """
     Base class used by all checked exceptions that are thrown by the CLI.
