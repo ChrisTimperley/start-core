@@ -6,6 +6,7 @@ import configparser
 from .mission import Mission
 from .attack import Attack
 from .sitl import SITL
+from .exceptions import FileNotFoundException
 
 __all__ = ['Scenario']
 
@@ -28,8 +29,8 @@ class Scenario(object):
         Constructs a description of a scenario from a given file.
         """
         if not os.path.isfile(fn):
-            msg = "failed to read confiugration file: {}".format(fn)
-            raise FileNotFoundError(msg)
+            msg = "failed to read configuration file: {}".format(fn)
+            raise FileNotFoundException(msg)
 
         cfg = configparser.SafeConfigParser()
         fn_cfg = os.path.join(os.path.dirname(__file__),
@@ -56,9 +57,8 @@ class Scenario(object):
                         latitude=cfg.getfloat('Attack', 'latitude'),
                         radius=cfg.getfloat('Attack', 'radius'))
         sitl = SITL.from_cfg(cfg, dir_source)
-        mission = Mission.from_file(sitl.home_location,
-                                    sitl.vehicle_kind,
-                                    timeout,
+        mission = Mission.from_file(sitl.home,
+                                    sitl.vehicle,
                                     fn_mission)
         return Scenario(name=cfg.get('General', 'name'),
                         directory=dir_cfg,
