@@ -52,23 +52,24 @@ class SITL(object):
             "binary does not exist: {}".format(self.__path_binary)
 
     @property
-    def vehicle(self):
+    def vehicle(self):  # type: () -> str
         """
         The name of the vehicle under test.
         """
         return self.__vehicle
 
     @property
-    def home(self):
+    def home(self):  # type: () -> Tuple[float, float, float, float]
         """
         The initial home location of the vehicle.
         """
         return self.__home_loc
 
-    def command(self, prefix = None, speedup = 1):
+    def command(self, prefix = None, speedup = 1):  # type: (Optional[str], int) -> str
         if prefix is None:
             prefix = ''
 
+        # FIXME allow a custom script to be used?
         script_sim = os.path.join(self.__dir_base, 'Tools/autotest/sim_vehicle.py')
         cmd = [
             script_sim,
@@ -93,7 +94,7 @@ class SITL(object):
                                           stderr=DEVNULL,
                                           preexec_fn=os.setsid)
 
-    def stop(self):
+    def stop(self):  # type: () -> None
         if self.__process:
             os.killpg(self.__process.pid, signal.SIGTERM)
         self.__process = None
