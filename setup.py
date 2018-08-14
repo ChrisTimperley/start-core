@@ -2,7 +2,7 @@ import os
 import glob
 import setuptools
 
-PKG_NAME = 'start_th'
+PKG_NAME = 'start_core'
 
 path = os.path.join(os.path.dirname(__file__), 'src', PKG_NAME, 'version.py')
 with open(path, 'r') as f:
@@ -11,7 +11,7 @@ with open(path, 'r') as f:
 setuptools.setup(
     name=PKG_NAME,
     version=__version__,
-    description='A test harness for START',
+    description='Provides common data structures and helper methods for START',
     long_description='TBA',
     author='Chris Timperley',
     author_email='christimperley@gmail.com',
@@ -28,9 +28,9 @@ setuptools.setup(
         '': ['scenario.config.DEFAULT']
     },
     py_modules=[
-        splitext(basename(path))[0] for path in glob.glob('start_th/*.py')
+        splitext(basename(path))[0] for path in glob.glob('start_core/*.py')
     ],
     entry_points = {
-        'console_scripts': [ 'start-tester = start_th.cli:main' ]
+        'console_scripts': [ 'start-tester = start_core.cli:main' ]
     }
 )
