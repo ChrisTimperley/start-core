@@ -58,6 +58,7 @@ class Scenario(object):
         sitl = SITL.from_cfg(cfg, dir_source)
         mission = Mission.from_file(sitl.home_location,
                                     sitl.vehicle_kind,
+                                    timeout,
                                     fn_mission)
         return Scenario(name=cfg.get('General', 'name'),
                         directory=dir_cfg,
