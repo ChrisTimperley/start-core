@@ -22,7 +22,7 @@ setuptools.setup(
         'attrs'
     ],
     include_package_data=True,
-    packages=['start_th'],
+    packages=['start_core'],
     package_dir={'': 'src'},
     package_data={
         '': ['scenario.config.DEFAULT']
