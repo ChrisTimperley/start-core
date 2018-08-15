@@ -1,3 +1,5 @@
+__all__ = ['Attack', 'Attacker']
+
 import subprocess
 import signal
 import socket
@@ -26,20 +28,6 @@ class Attacker(object):
     """
     Responsible for launching a given attack on a vehicle.
     """
-    @staticmethod
-    def from_cfg(cfg  # type: configparser.SafeConfigParser
-                 ):  # type: Attacker
-        # FIXME obtain absolute path
-        attack = Attack(script='attack.py',
-                        flags=cfg.get('Attack', 'script_flags'),
-                        longitude=cfg.getfloat('Attack', 'longitude'),
-                        latitude=cfg.getfloat('Attack', 'latitude'),
-                        radius=cfg.getfloat('Attack', 'radius'))
-        attacker = Attacker(attack,
-                            port=16666, # we can just run the attack server on a fixed port
-                            url_sitl='127.0.0.1:14551') # FIXME the SITL should also be at a fixed URL
-        return attacker
-
     def __init__(self,
                  attack,  # type: Attack
                  url_sitl,  # type: str
