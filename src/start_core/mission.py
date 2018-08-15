@@ -1,16 +1,17 @@
 """
 FIXME inconsistency in storage of home location
 """
-__all__ ['Mission']
-
 from __future__ import print_function
-from typing import List
+__all__ = ['Mission']
+
+from typing import List, Tuple
 from timeit import default_timer as timer
 import time
 import signal
 import logging
 
 import dronekit
+import attr
 
 from .exceptions import TimeoutException
 from .helper import distance, observe
