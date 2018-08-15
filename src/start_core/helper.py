@@ -1,7 +1,16 @@
+__all__ = ['DEVNULL', 'observe', 'distance', 'get_location_metres']
+
 import math
+import os
+import subprocess
 
 import dronekit
 from pymavlink import mavutil
+
+try:
+    DEVNULL = subprocess.DEVNULL
+except AttributeError:
+    DEVNULL = open(os.devnull, 'w')
 
 
 def observe(vehicle):
