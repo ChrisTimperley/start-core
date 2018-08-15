@@ -112,13 +112,6 @@ class Mission(object):
         return len(self.__commands)
 
     @property
-    def home(self):
-        """
-        The initial location of the vehicle at the start of the mission.
-        """
-        return self.home
-
-    @property
     def expected_tokens(self):
         """
         The sequence of tokens that the vehicle is expected to produce during
