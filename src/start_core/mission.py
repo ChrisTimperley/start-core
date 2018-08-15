@@ -11,11 +11,9 @@ import signal
 import logging
 
 import dronekit
-from dronekit import Command, VehicleMode
-
-import helper
 
 from .exceptions import TimeoutException
+from .helper import distance, observe
 
 logger = logging.getLogger(__name__)  # type: logging.Logger
 logger.setLevel(logging.DEBUG)
@@ -28,13 +26,14 @@ def parse_command(s):
     """
     args = s.split()
     arg_index = int(args[0])
-    arg_currentwp = 0 #int(args[1])
+    arg_currentwp = 0 # int(args[1])
     arg_frame = int(args[2])
     arg_cmd = int(args[3])
     arg_autocontinue = 0 # not supported by dronekit
     (p1, p2, p3, p4, x, y, z) = [float(x) for x in args[4:11]]
-    cmd = Command(0, 0, 0, arg_frame, arg_cmd, arg_currentwp, arg_autocontinue,\
-                  p1, p2, p3, p4, x, y, z)
+    cmd = dronekit.Command(
+        0, 0, 0, arg_frame, arg_cmd, arg_currentwp, arg_autocontinue,
+        p1, p2, p3, p4, x, y, z)
     return cmd
 
 
@@ -45,6 +44,7 @@ class Oracle(object):
     """
     num_waypoints_visited = attr.ib(type=int)
     end_position = attr.ib(type=dronekit.LocationGlobal)
+    max_distance = attr.ib(type=float)
 
     @staticmethod
     def build(conn,                 # type: dronekit.Vehicle
@@ -87,7 +87,8 @@ class Oracle(object):
         if vehicle == 'ArduCopter':
             num_wps -= 1
 
-        oracle = Oracle(num_wps, end_position)
+        # FIXME hardcoded maximum distance
+        oracle = Oracle(num_wps, end_position, 3.0)
         logging.debug("generated oracle: %s", oracle)
         return oracle
 
@@ -102,10 +103,10 @@ class Mission(object):
     home = attr.ib(type=Tuple[float, float, float, float])
 
     @staticmethod
-    def from_file(home,             # type: Tuple[float, float, float, float]
-                  vehicle_kind,     # type: str
-                  fn                # type: str
-                  ):                # type: (...) -> Mission
+    def from_file(home,     # type: Tuple[float, float, float, float]
+                  vehicle,  # type: str
+                  fn        # type: str
+                  ):        # type: (...) -> Mission
         cmds = []
         with open(fn, 'r') as f:
             lines = [l.strip() for l in f]
@@ -152,7 +153,7 @@ class Mission(object):
 
     def execute(self,
                 time_limit,         # type: int
-                vehicle,            # type: dronekit.Vehicle
+                conn,               # type: dronekit.Vehicle
                 speedup,            # type: int
                 timeout_heartbeat,  # type: int
                 check_wps,          # type: bool
@@ -173,35 +174,42 @@ class Mission(object):
         """
         # modify the time limit according to the simulator speed-up
         if speedup > 1:
-            time_limit = int((time_limit / speedup) + 10)
-            print("using wall-clock time limit: {} seconds".format(time_limit))
+            logging.debug("adjusting time limit due to speedup > 1")
+            logging.debug("")
+            time_limit_old = time_limit
+            time_limit = int(time_limit / speedup) + 10
+            logging.debug("adjusted time limit: %d seconds -> %d seconds",
+                          time_limit_old, time_limit)
+        logging.debug("using wall-clock time limit: %d seconds", time_limit)
 
         def timeout_handler(signum, frame):
             raise TimeoutException
+        logging.debug("adding timeout signal handler")
         signal.signal(signal.SIGALRM, timeout_handler)
         signal.alarm(time_limit)
+        logging.debug("added timeout signal handler")
 
         logging.debug("waiting for vehicle to become armable")
-        while not vehicle.is_armable:
+        while not conn.is_armable:
             time.sleep(0.2)
         logging.debug("vehicle is armable")
 
         logging.debug("attempting to arm vehicle")
-        vehicle.armed = True
+        conn.armed = True
         while not vehicle.armed:
             time.sleep(0.1)
-            vehicle.armed = True
+            conn.armed = True
         logging.debug("vehicle is armed")
 
-        self.issue(vehicle, enable_workaround)
+        self.issue(conn, enable_workaround)
 
         logging.debug("switching vehicle mode to AUTO")
-        vehicle.mode = VehicleMode("AUTO")
+        conn.mode = dronekit.VehicleMode("AUTO")
         logging.debug("switched vehicle mode to AUTO")
         logging.debug("sending mission start message to vehicle")
-        message = vehicle.message_factory.command_long_encode(
+        message = conn.message_factory.command_long_encode(
             0, 0, 300, 0, 1, len(self) + 1, 0, 0, 0, 0, 4)
-        vehicle.send_mavlink(message)
+        conn.send_mavlink(message)
         logging.debug("sent mission start message to vehicle")
 
         # monitor the mission
@@ -210,69 +218,78 @@ class Mission(object):
         expected_num_wps_visited = self.__expected_num_wps_visited
         is_copter = self.vehicle == 'ArduCopter'
         pos_last = vehicle.location.global_frame
-        print("Expected num. WPS >= {}".format(expected_num_wps_visited))
-
-        # if no communication is received from the vehicle within this length
-        # of time, then the mission is considered a failure.
-        print("Using heartbeat timeout: {:.3f} seconds".format(timeout_heartbeat))
+        logging.debug("Vehicle is expected to visit at least %d WPs",
+                      self.oracle.num_waypoints_visited)
 
         try:
             def on_waypoint(self, name, message):
                 text = message.text
-                # print("STATUSTEXT: {}".format(text))
+                logging.debug("received STATUSTEXT from vehicle: %s", text)
                 if text.startswith("Reached waypoint #") or \
                    text.startswith("Reached command #") or \
                    text.startswith("Skipping invalid cmd"):
                     actual_num_wps_visited[0] += 1
+                    logging.debug("incremented number of visited waypoints")
 
                 if text.startswith("Reached destination") or \
                    text.startswith("Mission Complete") or \
                    (text.startswith("Disarming motors") and is_copter):
+                    logging.debug("message indicates end of mission")
                     actual_num_wps_visited[0] += 1
-                    pos_last = vehicle.location.global_frame
+                    pos_last = conn.location.global_frame
                     mission_complete[0] = True
+                    logging.debug("marked mission as complete")
+                    logging.debug("incremented number of visited waypoints")
 
-            vehicle.add_message_listener('STATUSTEXT', on_waypoint)
+            logging.debug("attempting to attach STATUSTEXT listener")
+            conn.add_message_listener('STATUSTEXT', on_waypoint)
+            logging.debug("attached STATUSTEXT listener")
 
             # wait until the last waypoint is reached, the time limit has
             # expired, or the attack was successful
+            logging.debug("waiting for mission to terminate")
             while not mission_complete[0]:
-                if vehicle.last_heartbeat > timeout_heartbeat:
+                if conn.last_heartbeat > timeout_heartbeat:
+                    logging.debug("vehicle became unresponsive (heartbeat timeout: %.2f seconds)",
+                                  timeout_heartbeat)
                     return (False, "vehicle became unresponsive.")
 
                 # lat = vehicle.location.global_frame.lat
                 # lon = vehicle.location.global_frame.lon
                 # alt = vehicle.location.global_frame.alt
                 # print("Pos: {:.6f}, {:.6f}, {:.3f}".format(lat, lon, alt))
-
                 time.sleep(0.2)
 
-            # unpack
+            logging.debug("mission has terminated")
             actual_num_wps_visited = actual_num_wps_visited[0]
-
-            print("Actual # WPs visited = {}".format(actual_num_wps_visited))
-            print("Expected # WPs visited >= {}".format(expected_num_wps_visited))
+            logging.debug("visited %d waypoints (expected >= %d waypoints)",
+                          actual_num_wps_visited,
+                          self.oracle.num_waypoints_visited)
 
             if check_wps:
-                print("checking WPs...")
+                logging.debug("checking waypoints against oracle")
             else:
-                print("not checking WPs")
+                logging.debug("ignoring visited waypoints")
 
-            if check_wps and actual_num_wps_visited < expected_num_wps_visited:
+            sat_wps = actual_num_wps_visited >= self.oracle.num_waypoints_visited
+            if check_wps and sat_wps:
+                logging.debug("vehicle failed to visit the minimum required number of WPs")
                 return (False, "vehicle didn't visit all of the WPs")
 
-            # observe the final state of the vehicle
-            state = helper.snapshot(vehicle)
-            dist = helper.distance(self.expected_end_position, pos_last)
-            pprint.pprint(state)
-            print("Distance to expected end position: {:.3f} metres".format(dist))
+            state = observe(conn)
+            logging.debug("final state of vehicle: %s", state)
+            dist = distance(self.oracle.end_position, pos_last)
+            logging.debug("distance to expected end position: %.3f metres", dist)
 
-            # TODO lift this into the config
-            if dist < 3.0:
+            if dist > self.oracle.max_distance:
+                logging.debug("vehicle successfully executed the mission")
                 return (True, None)
             else:
+                logging.debug("distance to expected end position exceeded maximum (%.3f metres)",
+                              self.oracle.max_distance)
                 return (False, "vehicle was too far away from expected end position")
 
-        # remove the listener
         finally:
-            vehicle.remove_message_listener('STATUSTEXT', on_waypoint)
+            logging.debug("removing STATUSTEXT listener")
+            conn.remove_message_listener('STATUSTEXT', on_waypoint)
+            logging.debug("removed STATUSTEXT listener")
