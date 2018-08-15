@@ -28,3 +28,8 @@ class UnsupportedRevisionException(STARTException):
     A given revision of the ArduPilot source code is not supported as a START
     subject.
     """
+
+class TimeoutException(STARTException):
+    """
+    A timeout occurred during the execution of a mission.
+    """
