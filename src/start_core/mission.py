@@ -95,6 +95,7 @@ class Oracle(object):
 
 
 # @attr.s(frozen=True)
+@attr.s()
 class Mission(object):
     """
     Describes a mission that may be assigned to an ArduPilot vehicle.
