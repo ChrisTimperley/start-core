@@ -198,7 +198,7 @@ class Mission(object):
 
         logging.debug("attempting to arm vehicle")
         conn.armed = True
-        while not vehicle.armed:
+        while not conn.armed:
             time.sleep(0.1)
             conn.armed = True
         logging.debug("vehicle is armed")
