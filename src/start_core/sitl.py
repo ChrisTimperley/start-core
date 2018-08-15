@@ -1,9 +1,14 @@
-# This script is responsible for launching and closing the SITL.
+"""
+This module is responsible for launching, closing, and interacting with the
+SITL for the ArduPilot.
+"""
+__all__ = ['SITL']
+
 import subprocess
 import os
 import signal
-import configparser
 
+import configparser
 
 try:
     DEVNULL = subprocess.DEVNULL
