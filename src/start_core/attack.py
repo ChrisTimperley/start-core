@@ -11,6 +11,8 @@ import logging
 import attr
 import configparser
 
+from .helper import DEVNULL
+
 logger = logging.getLogger(__name__)  # type: logging.Logger
 logger.setLevel(logging.DEBUG)
 
@@ -86,7 +88,9 @@ class Attacker(object):
         logger.debug("launching attack server via command: %s", cmd)
         self.__process = subprocess.Popen(cmd,
                                           shell=True,
-                                          preexec_fn=os.setsid)
+                                          preexec_fn=os.setsid,
+                                          stdout=DEVNULL,
+                                          stderr=DEVNULL)
                                           # stdout=subprocess.PIPE,
                                           # stderr=subprocess.STDOUT)
         logger.debug("launched attack server")
