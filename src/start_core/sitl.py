@@ -16,14 +16,10 @@ import configparser
 
 from .mission import Mission
 from .exceptions import FileNotFoundException
+from .helper import DEVNULL
 
 logger = logging.getLogger(__name__)  # type: logging.Logger
 logger.setLevel(logging.DEBUG)
-
-try:
-    DEVNULL = subprocess.DEVNULL
-except AttributeError:
-    DEVNULL = open(os.devnull, 'w')
 
 
 @attr.s(frozen=True)
