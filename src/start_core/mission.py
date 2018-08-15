@@ -47,7 +47,8 @@ class Oracle(object):
     end_position = attr.ib(type=dronekit.LocationGlobal)
 
     @staticmethod
-    def build(vehicle,              # type: dronekit.Vehicle
+    def build(conn,                 # type: dronekit.Vehicle
+              vehicle,              # type: str
               home,                 # type: Tuple[float, float, float, float]
               enable_workaround     # type: bool
               ):                    # type: (...) -> Oracle
@@ -55,7 +56,7 @@ class Oracle(object):
         home_loc = dronekit.LocationGlobal(home[0], home[1], home[2])
         end_position = home_loc
 
-        for command in vehicle.commands:
+        for command in conn.commands:
             # assumption: all commands use the same frame of reference
             # TODO add assertion
             command_id = command.command
@@ -99,7 +100,6 @@ class Mission(object):
     vehicle = attr.ib(type=str)  # FIXME use Enum?
     commands = attr.ib(type=List[dronekit.Command])
     home = attr.ib(type=Tuple[float, float, float, float])
-    # dronekit.LocationGlobal(home_lat, home_lon, home_alt)
 
     @staticmethod
     def from_file(home,             # type: Tuple[float, float, float, float]
@@ -121,7 +121,7 @@ class Mission(object):
         return len(self.__commands)
 
     def issue(self,
-              vehicle,              # type: dronekit.Vehicle
+              conn,                 # type: dronekit.Vehicle
               enable_workaround     # type: bool
               ):                    # type: (...) -> None
         """
@@ -129,7 +129,7 @@ class Mission(object):
         to a given vehicle.
         Blocks until the mission has been downloaded onto the vehicle.
         """
-        vcmds = vehicle.commands
+        vcmds = conn.commands
         logger.debug("clearing vehicle's command list")
         vcmds.clear()
         logger.debug("cleared vehicle's command list")
@@ -139,8 +139,9 @@ class Mission(object):
             logging.debug("added command to list: %s", command)
         logging.debug("added all commands to vehicle's command list")
 
+        # FIXME lift into constructor
         logging.debug("computing oracle for mission")
-        self.__generate_oracle(vehicle, enable_workaround)
+        self.oracle = Oracle(conn, self.vehicle, self.home, enable_workaround)
         logging.debug("computed oracle for mission")
 
         logging.debug("uploading mission to vehicle")
