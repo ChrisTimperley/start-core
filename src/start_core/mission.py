@@ -8,7 +8,7 @@ from typing import List
 from timeit import default_timer as timer
 import time
 import signal
-import pprint
+import logging
 
 import dronekit
 from dronekit import Command, VehicleMode
@@ -16,6 +16,9 @@ from dronekit import Command, VehicleMode
 import helper
 
 from .exceptions import TimeoutException
+
+logger = logging.getLogger(__name__)  # type: logging.Logger
+logger.setLevel(logging.DEBUG)
 
 
 def parse_command(s):
@@ -35,7 +38,7 @@ def parse_command(s):
     return cmd
 
 
-@attr.s(frozen=True)
+# @attr.s(frozen=True)
 class Mission(object):
     """
     Describes a mission that may be assigned to an ArduPilot vehicle.
@@ -58,7 +61,11 @@ class Mission(object):
                 cmds.append(cmd)
         return Mission(vehicle, cmds, home)
 
-    def __generate_oracle(self, vehicle, enable_workaround):
+    # FIXME try to fold this into the constructor
+    def __generate_oracle(self,
+                          vehicle,              # type: dronekit.Vehicle
+                          enable_workaround     # type: bool
+                          ):                    # type: (...) -> None
         """
         Statically determines the expected end position of the vehicle from the
         contents of the mission, as well as the (minimum) number of waypoints
@@ -68,8 +75,7 @@ class Mission(object):
         Parameters:
             vehicle:        a connection to the vehicle under test.
         """
-
-        self.__expected_end_position = self.home
+        self.__expected_end_position = self.home  # FIXME
         self.__expected_num_wps_visited = 0
         on_ground = True
 
@@ -89,7 +95,7 @@ class Mission(object):
                 on_ground = True
 
                 # copter will ignore all commands after an RTL
-                if self.__vehicle_kind == 'ArduCopter':
+                if self.vehicle == 'ArduCopter':
                     self.__expected_num_wps_visited += 1
                     break
 
@@ -101,13 +107,12 @@ class Mission(object):
             self.__expected_num_wps_visited += 1
 
         # first WP is completely ignored by ArduCopter
-        if self.__vehicle_kind == 'ArduCopter':
+        if self.vehicle == 'ArduCopter':
             self.__expected_num_wps_visited -= 1
 
     def __len__(self):
         """
-        The length of the mission is given by the number of commands that it
-        contains.
+        The length of the mission is given its number of commands.
         """
         return len(self.__commands)
 
@@ -127,45 +132,43 @@ class Mission(object):
         """
         return self.__expected_end_position
 
-    def issue(self, vehicle, enable_workaround):
+    def issue(self,
+              vehicle,              # type: dronekit.Vehicle
+              enable_workaround     # type: bool
+              ):                    # type: (...) -> None
         """
         Issues (but does not trigger) a mission, provided as a list of commands,
         to a given vehicle.
         Blocks until the mission has been downloaded onto the vehicle.
         """
         vcmds = vehicle.commands
+        logger.debug("clearing vehicle's command list")
         vcmds.clear()
-        for command in self.__commands:
+        logger.debug("cleared vehicle's command list")
+        logging.debug("adding commands to vehicle's command list")
+        for command in self.commands:
             vcmds.add(command)
+            logging.debug("added command to list: %s", command)
+        logging.debug("added all commands to vehicle's command list")
 
-        print("Generating oracle...")
+        logging.debug("computing oracle for mission")
         self.__generate_oracle(vehicle, enable_workaround)
-        print("Generated oracle")
+        logging.debug("computed oracle for mission")
 
-        print("Uploading mission...")
-        for (i, command) in enumerate(vcmds):
-            print("{}: {}".format(i, command))
+        logging.debug("uploading mission to vehicle")
         vcmds.upload()
+        logging.debug("triggered upload")
         vcmds.wait_ready()
-        print("Uploaded mission")
+        logging.debug("finished uploading mission to vehicle")
 
-    def __start(self, vehicle):
-        message = vehicle.message_factory.command_long_encode(
-            0,  # target_system
-            0,  # target_component
-            300,  # MAV_CMD MISSION_START
-            0,  # confirmation
-            1,  # param 1 first mission item to run
-            len(self) + 1,  # param 2 final mission item to run
-            0,  # param 3 (empty)
-            0,  # param 4 (empty)
-            0,  # param 5 (empty)
-            0,  # param 6 (empty)
-            4,  # param 7 (empty)
-        )
-        vehicle.send_mavlink(message)
-
-    def execute(self, time_limit, vehicle, speedup, timeout_heartbeat, check_wps, enable_workaround):
+    def execute(self,
+                time_limit,         # type: int
+                vehicle,            # type: dronekit.Vehicle
+                speedup,            # type: int
+                timeout_heartbeat,  # type: int
+                check_wps,          # type: bool
+                enable_workaround   # type: bool
+                ):                  # type: (...) -> List[bool, str]
         """
         Executes this mission on a given vehicle.
 
@@ -174,11 +177,6 @@ class Mission(object):
                 to finish executing the mission before aborting the mission.
             vehicle: the vehicle that should execute the mission.
             speedup: the speed-up factor used by the simulation.
-
-        Returns:
-            a sequence of tuples of the form (wp, state), where wp corresponds
-            to a given waypoint in the mission, and state describes the state
-            of the vehicle when it reached that waypoint.
 
         Raises:
             TimeoutError: if the mission doesn't finish executing within the
@@ -194,27 +192,34 @@ class Mission(object):
         signal.signal(signal.SIGALRM, timeout_handler)
         signal.alarm(time_limit)
 
+        logging.debug("waiting for vehicle to become armable")
         while not vehicle.is_armable:
             time.sleep(0.2)
+        logging.debug("vehicle is armable")
 
-        # arm the rover
+        logging.debug("attempting to arm vehicle")
         vehicle.armed = True
         while not vehicle.armed:
-            print("waiting for the vehicle to be armed...")
             time.sleep(0.1)
             vehicle.armed = True
+        logging.debug("vehicle is armed")
 
         self.issue(vehicle, enable_workaround)
 
-        # trigger the mission by switching the vehicle's mode to "AUTO"
+        logging.debug("switching vehicle mode to AUTO")
         vehicle.mode = VehicleMode("AUTO")
-        self.__start(vehicle)
+        logging.debug("switched vehicle mode to AUTO")
+        logging.debug("sending mission start message to vehicle")
+        message = vehicle.message_factory.command_long_encode(
+            0, 0, 300, 0, 1, len(self) + 1, 0, 0, 0, 0, 4)
+        vehicle.send_mavlink(message)
+        logging.debug("sent mission start message to vehicle")
 
         # monitor the mission
         mission_complete = [False]
         actual_num_wps_visited = [0]
         expected_num_wps_visited = self.__expected_num_wps_visited
-        is_copter = self.__vehicle_kind == 'ArduCopter'
+        is_copter = self.vehicle == 'ArduCopter'
         pos_last = vehicle.location.global_frame
         print("Expected num. WPS >= {}".format(expected_num_wps_visited))
 
