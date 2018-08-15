@@ -20,7 +20,8 @@ setuptools.setup(
     install_requires=[
         'configparser',
         'attrs',
-        'dronekit'
+        'dronekit',
+        'typing'
     ],
     include_package_data=True,
     packages=['start_core'],
@@ -32,6 +33,9 @@ setuptools.setup(
         splitext(basename(path))[0] for path in glob.glob('start_core/*.py')
     ],
     entry_points = {
-        'console_scripts': [ 'start-tester = start_core.cli:main' ]
+        'console_scripts': [
+            'start-tester = start_core.cli:main',
+            'spookypup = start_core.foo:main'
+        ]
     }
 )
