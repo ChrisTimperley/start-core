@@ -1,4 +1,7 @@
+__all__ = ['Scenario']
+
 import os
+import logging
 
 import attr
 import configparser
@@ -8,7 +11,9 @@ from .attack import Attack
 from .sitl import SITL
 from .exceptions import FileNotFoundException, UnsupportedRevisionException
 
-__all__ = ['Scenario']
+logger = logging.getLogger(__name__)  # type: logging.Logger
+logger.setLevel(logging.DEBUG)
+
 
 SUPPORTED_REVISIONS = [
     '368698d',
@@ -82,18 +87,30 @@ class Scenario(object):
                         latitude=cfg.getfloat('Attack', 'latitude'),
                         radius=cfg.getfloat('Attack', 'radius'))
 
-        mission = Mission.from_file(sitl.home,
-                                    sitl.vehicle,
-                                    fn_mission)
+        vehicle = cfg.get('General', 'vehicle')
+        assert vehicle in ['APMrover2', 'ArduCopter', 'ArduPlane']
+
+        home_lat = cfg.getfloat('Mission', 'latitude')
+        assert home_lat >= 0.0 and home_lat <= 90.0
+        home_lon = cfg.getfloat('Mission', 'longitude')
+        assert home_lon >= -180.0 and home_lon <= 180.0
+        home_alt = cfg.getfloat('Mission', 'altitude')
+        home_heading = cfg.getfloat('Mission', 'heading')
+        assert home_heading >= 0.0 and home_heading <= 360.0
+        home = (home_lat, home_lon, home_alt, home_heading)
+
+        fn_mission = cfg.get('Mission', 'mission')
+        fn_mission = os.path.join(dir_cfg, fn_mission)
+        mission = Mission.from_file(home, vehicle, fn_mission)
 
         logging.debug("building SITL for scenario")
         name_binary = ({
             'APMrover2': 'ardurover',
             'ArduCopter': 'arducopter',
             'ArduPlane': 'arduplane'
-        })[scenario.mission.vehicle]
+        })[vehicle]
         fn_harness = os.path.join(dir_source, 'Tools/autotest/sim_vehicle.py')
-        sitl = SITL(fn_harness, mission.vehicle, mission.home)
+        sitl = SITL(fn_harness, vehicle, home)
         logging.debug("built SITL for scenario: %s", sitl)
 
         if not os.path.isfile(fn_diff):
