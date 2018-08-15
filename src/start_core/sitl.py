@@ -14,6 +14,7 @@ import logging
 import configparser
 
 from .scenario import Scenario
+from .mission import Mission
 from .exceptions import FileNotFoundException
 
 logger = logging.getLogger(__name__)  # type: logging.Logger
@@ -27,7 +28,6 @@ except AttributeError:
 
 @attr.s(frozen=True)
 class SITL(object):
-    fn_binary = attr.ib(type=str)
     fn_harness = attr.ib(type=str)
     vehicle = attr.ib(type=str)
     home = attr.ib(type=Tuple[float, float, float, float])
@@ -41,15 +41,16 @@ class SITL(object):
             'ArduPlane': 'arduplane'
         })[scenario.mission.vehicle]
         logging.debug("building SITL for scenario [%s]", scenario.name)
-        dir_base = scenario.directory
-        fn_binary = os.path.join(dir_base, 'build/sitl/bin', name_binary)
-        fn_harness = os.path.join(dir_base, 'Tools/autotest/sim_vehicle.py')
-        sitl = SITL(fn_binary,
-                    fn_harness,
+        fn_harness = os.path.join(scenario.directory, 'Tools/autotest/sim_vehicle.py')
+        sitl = SITL(fn_harness,
                     scenario.vehicle,
                     scenario.mission.home)  # FIXME alias
         logging.debug("built SITL for scenario [%s]: %s", scenario.name, sitl)
         return sitl
+
+    @property
+    def url(self):  # type: () -> str
+        return 'udp:127.0.0.1:14550'
 
     def command(self,
                 prefix=None,    # type: Optional[str]
