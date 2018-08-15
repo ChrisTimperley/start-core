@@ -4,11 +4,16 @@ SITL for the ArduPilot.
 """
 __all__ = ['SITL']
 
+from typing import Tuple
 import subprocess
 import os
 import signal
+import contextlib
 
 import configparser
+
+from .scenario import Scenario
+from .exceptions import FileNotFoundException
 
 try:
     DEVNULL = subprocess.DEVNULL
@@ -16,90 +21,73 @@ except AttributeError:
     DEVNULL = open(os.devnull, 'w')
 
 
+@attr.s(frozen=True)
 class SITL(object):
+    fn_binary = attr.ib(type=str)
+    fn_harness = attr.ib(type=str)
+    vehicle = attr.ib(type=str)
+    home = attr.ib(type=Tuple[float, float, float, float])
+
     @staticmethod
-    def from_cfg(cfg, dir_source, home = None, vehicle = None):
-        if not vehicle:
-            vehicle = cfg.get("General", "vehicle")
-        if not home:
-            lat = cfg.getfloat("Mission", "latitude")
-            lon = cfg.getfloat("Mission", "longitude")
-            alt = cfg.getfloat("Mission", "altitude")
-            heading = cfg.getfloat("Mission", "heading")
-            home = (lat, lon, alt, heading)
-
-        assert isinstance(home, tuple)
-        assert len(home) == 4
-        assert all(isinstance(x, float) for x in home)
-        assert vehicle in ['APMrover2', 'ArduCopter', 'ArduPlane']
-
-        return SITL(vehicle=vehicle,
-                    home=home,
-                    dir_source=dir_source)
-
-    def __init__(self,
-                 vehicle,
-                 home,
-                 dir_source):
-        binary_name = ({
+    def from_scenario(scenario):
+        # type: (Scenario) -> SITL
+        home = scenario.mission.home  # FIXME alias
+        name_binary = ({
             'APMrover2': 'ardurover',
             'ArduCopter': 'arducopter',
             'ArduPlane': 'arduplane'
-        })[vehicle]
+        })[scenario.mission.vehicle]
+        dir_base = scenario.directory
+        fn_binary = os.path.join(dir_base, 'build/sitl/bin', name_binary)
+        # FIXME allow a custom script to be used?
+        fn_harness = os.path.join(dir_base, 'Tools/autotest/sim_vehicle.py')
+        return SITL(fn_binary,
+                    fn_harness,
+                    scenario.vehicle,
+                    scenario.mission.home)
 
-        self.__dir_base = dir_source
-        self.__vehicle = vehicle
-        self.__process = None
-        self.__home_loc = home
-        self.__path_binary = os.path.join(self.__dir_base, 'build/sitl/bin', binary_name)
-
-        assert os.path.exists(self.__path_binary), \
-            "binary does not exist: {}".format(self.__path_binary)
-
-    @property
-    def vehicle(self):  # type: () -> str
+    def command(self,
+                prefix=None,    # type: Optional[str]
+                speedup=1       # type: int
+                ):              # type: (...) -> str
         """
-        The name of the vehicle under test.
-        """
-        return self.__vehicle
+        Computes the command that should be used to launch the SITL.
 
-    @property
-    def home(self):  # type: () -> Tuple[float, float, float, float]
+        Parameters:
+            prefix: an optional prefix that should be attached to the command.
+            speedup: the speedup factor that should be applied to the simulator
+                clock.
         """
-        The initial home location of the vehicle.
-        """
-        return self.__home_loc
-
-    def command(self, prefix = None, speedup = 1):  # type: (Optional[str], int) -> str
         if prefix is None:
             prefix = ''
 
-        # FIXME allow a custom script to be used?
-        script_sim = os.path.join(self.__dir_base, 'Tools/autotest/sim_vehicle.py')
         cmd = [
-            script_sim,
+            prefix,
+            self.fn_harness,
             "--mavproxy-args '--daemon --out 127.0.0.1:14552 --out 127.0.0.1:14553'", # don't attach to STDIN!
             "-l", "{},{},{},{}".format(*self.__home_loc),
             "-v", self.__vehicle,
             "-w",
             "--speedup={}".format(speedup),
             "--no-rebuild "
-            # "--ardu-dir ", self.__dir_base, # BAD: no longer supported
-            # "--ardu-binary", self.__path_binary # BAD: no longer supported
         ]
-        return prefix + ' '.join(cmd)
+        return ' '.join(cmd).lstrip()
 
-    def start(self, prefix = None, speedup = 1):
-        command = self.command(prefix=prefix, speedup=speedup)
-        print(command)
-        self.__process = subprocess.Popen(command,
-                                          shell=True,
-                                          stdin=DEVNULL,
-                                          stdout=DEVNULL,
-                                          stderr=DEVNULL,
-                                          preexec_fn=os.setsid)
-
-    def stop(self):  # type: () -> None
-        if self.__process:
-            os.killpg(self.__process.pid, signal.SIGTERM)
-        self.__process = None
+    @contextlib.contextmanager
+    def launch(self,
+               prefix=None, # type: Optional[str]
+               speedup=1    # type: int
+               ):           # type: (...) -> None
+        command = self.command(prefix, speedup)
+        process = None  # type: Optional[subprocess.Popen]
+        try:
+            process = subprocess.Popen(command,
+                                       shell=True,
+                                       stdin=DEVNULL,
+                                       stdout=DEVNULL,
+                                       stderr=DEVNULL,
+                                       preexec_fn=os.setsid)
+            yield
+        finally:
+            if process:
+                os.killpg(self.__process.pid, signal.SIGTERM)
