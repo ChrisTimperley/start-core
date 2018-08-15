@@ -29,10 +29,10 @@ class Attacker(object):
     Responsible for launching a given attack on a vehicle.
     """
     def __init__(self,
-                 attack,  # type: Attack
+                 attack,    # type: Attack
                  url_sitl,  # type: str
-                 port  # type: int
-                 ):  # type: None
+                 port       # type: int
+                 ):         # type: (...) -> None
         self.__attack = attack
         self.__url_sitl = url_sitl
         self.__port = port
@@ -53,7 +53,7 @@ class Attacker(object):
         self.__socket = None
         self.__process = None
 
-    def prepare(self):  # type: None
+    def prepare(self):  # type: () -> None
         attack = self.__attack
         self.__fn_log = tempfile.NamedTemporaryFile()
         self.__fn_mav = tempfile.NamedTemporaryFile()
@@ -92,11 +92,11 @@ class Attacker(object):
         self.__socket .connect(("0.0.0.0", self.__port))
         self.__connection = self.__socket.makefile()
 
-    def start(self):  # type: None
+    def start(self):  # type: () -> None
         self.__connection.write("START\n")
         self.__connection.flush()
 
-    def stop(self):  # type: None
+    def stop(self):  # type: () -> None
         # close connection
         if self.__connection:
             self.__connection.write("EXIT\n")
@@ -120,7 +120,7 @@ class Attacker(object):
         self.__fn_log = None
         self.__fn_mav = None
 
-    def was_successful(self):  # type: bool
+    def was_successful(self):  # type: () -> bool
         self.__connection.write("CHECK\n")
         self.__connection.flush()
 
