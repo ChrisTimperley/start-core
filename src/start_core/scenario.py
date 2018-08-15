@@ -81,10 +81,20 @@ class Scenario(object):
                         longitude=cfg.getfloat('Attack', 'longitude'),
                         latitude=cfg.getfloat('Attack', 'latitude'),
                         radius=cfg.getfloat('Attack', 'radius'))
-        sitl = SITL.from_cfg(cfg, dir_source)
+
         mission = Mission.from_file(sitl.home,
                                     sitl.vehicle,
                                     fn_mission)
+
+        logging.debug("building SITL for scenario")
+        name_binary = ({
+            'APMrover2': 'ardurover',
+            'ArduCopter': 'arducopter',
+            'ArduPlane': 'arduplane'
+        })[scenario.mission.vehicle]
+        fn_harness = os.path.join(dir_source, 'Tools/autotest/sim_vehicle.py')
+        sitl = SITL(fn_harness, mission.vehicle, mission.home)
+        logging.debug("built SITL for scenario: %s", sitl)
 
         if not os.path.isfile(fn_diff):
             msg = "failed to locate vulnerability file: {}".format(fn_diff)

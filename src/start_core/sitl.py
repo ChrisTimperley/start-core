@@ -32,22 +32,6 @@ class SITL(object):
     vehicle = attr.ib(type=str)
     home = attr.ib(type=Tuple[float, float, float, float])
 
-    @staticmethod
-    def from_scenario(scenario):
-        # type: (Scenario) -> SITL
-        name_binary = ({
-            'APMrover2': 'ardurover',
-            'ArduCopter': 'arducopter',
-            'ArduPlane': 'arduplane'
-        })[scenario.mission.vehicle]
-        logging.debug("building SITL for scenario [%s]", scenario.name)
-        fn_harness = os.path.join(scenario.directory, 'Tools/autotest/sim_vehicle.py')
-        sitl = SITL(fn_harness,
-                    scenario.vehicle,
-                    scenario.mission.home)  # FIXME alias
-        logging.debug("built SITL for scenario [%s]: %s", scenario.name, sitl)
-        return sitl
-
     @property
     def url(self):  # type: () -> str
         return 'udp:127.0.0.1:14550'
