@@ -1,4 +1,10 @@
+"""
+FIXME inconsistency in storage of home location
+"""
+__all__ ['Mission']
+
 from __future__ import print_function
+from typing import List
 from timeit import default_timer as timer
 import time
 import signal
@@ -9,50 +15,48 @@ from dronekit import Command, VehicleMode
 
 import helper
 
-
-class TimeoutError(Exception):
-    pass
+from .exceptions import TimeoutException
 
 
+def parse_command(s):
+    """
+    Parses a line from a mission file into its corresponding Command
+    object in Dronekit.
+    """
+    args = s.split()
+    arg_index = int(args[0])
+    arg_currentwp = 0 #int(args[1])
+    arg_frame = int(args[2])
+    arg_cmd = int(args[3])
+    arg_autocontinue = 0 # not supported by dronekit
+    (p1, p2, p3, p4, x, y, z) = [float(x) for x in args[4:11]]
+    cmd = Command(0, 0, 0, arg_frame, arg_cmd, arg_currentwp, arg_autocontinue,\
+                  p1, p2, p3, p4, x, y, z)
+    return cmd
+
+
+@attr.s(frozen=True)
 class Mission(object):
-    @staticmethod
-    def __parse_command(s):
-        """
-        Parses a line from a mission file into its corresponding Command
-        object in Dronekit.
-        """
-        args = s.split()
-        arg_index = int(args[0])
-        arg_currentwp = 0 #int(args[1])
-        arg_frame = int(args[2])
-        arg_cmd = int(args[3])
-        arg_autocontinue = 0 # not supported by dronekit
-        (p1, p2, p3, p4, x, y, z) = [float(x) for x in args[4:11]]
-        cmd = Command(0, 0, 0, arg_frame, arg_cmd, arg_currentwp, arg_autocontinue,\
-                      p1, p2, p3, p4, x, y, z)
-        return cmd
+    """
+    Describes a mission that may be assigned to an ArduPilot vehicle.
+    """
+    vehicle = attr.ib(type=str)  # FIXME use Enum?
+    commands = attr.ib(type=List[dronekit.Command])
+    home = attr.ib(type=Tuple[float, float, float, float])
+    # dronekit.LocationGlobal(home_lat, home_lon, home_alt)
 
     @staticmethod
-    def from_file(home_location, vehicle_kind, fn):
-        """
-        Loads a mission from a given WPL file.
-        """
+    def from_file(home,             # type: Tuple[float, float, float, float]
+                  vehicle_kind,     # type: str
+                  fn                # type: str
+                  ):                # type: (...) -> Mission
         cmds = []
         with open(fn, 'r') as f:
             lines = [l.strip() for l in f]
             for line in lines[1:]:
-                cmd = Mission.__parse_command(line)
+                cmd = parse_command(line)
                 cmds.append(cmd)
-        return Mission(home_location, cmds, vehicle_kind)
-
-    def __init__(self, home_location, commands, vehicle_kind):
-        assert vehicle_kind in ['APMrover2', 'ArduPlane', 'ArduCopter']
-
-        home_lat, home_lon, home_alt = home_location[:3]
-        self.__vehicle_kind = vehicle_kind
-        self.__home_location = \
-            dronekit.LocationGlobal(home_lat, home_lon, home_alt)
-        self.__commands = commands[:]
+        return Mission(vehicle, cmds, home)
 
     def __generate_oracle(self, vehicle, enable_workaround):
         """
@@ -65,7 +69,7 @@ class Mission(object):
             vehicle:        a connection to the vehicle under test.
         """
 
-        self.__expected_end_position = self.__home_location
+        self.__expected_end_position = self.home
         self.__expected_num_wps_visited = 0
         on_ground = True
 
@@ -81,7 +85,7 @@ class Mission(object):
                 on_ground = False
 
             elif command_id == 20: # MAV_CMD_NAV_RETURN_TO_LAUNCH:
-                self.__expected_end_position = self.__home_location
+                self.__expected_end_position = self.home
                 on_ground = True
 
                 # copter will ignore all commands after an RTL
@@ -108,11 +112,11 @@ class Mission(object):
         return len(self.__commands)
 
     @property
-    def home_location(self):
+    def home(self):
         """
         The initial location of the vehicle at the start of the mission.
         """
-        return self.__home_location
+        return self.home
 
     @property
     def expected_tokens(self):
@@ -193,7 +197,7 @@ class Mission(object):
             print("using wall-clock time limit: {} seconds".format(time_limit))
 
         def timeout_handler(signum, frame):
-            raise TimeoutError
+            raise TimeoutException
         signal.signal(signal.SIGALRM, timeout_handler)
         signal.alarm(time_limit)
 
