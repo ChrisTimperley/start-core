@@ -1,10 +1,10 @@
 import math
 
-from dronekit import LocationGlobal, Command
+import dronekit
 from pymavlink import mavutil
 
 
-def snapshot(vehicle):
+def observe(vehicle):
     """
     Produces a snapshot of the current state of the vehicle.
     """
@@ -52,4 +52,4 @@ def get_location_metres(original_location, dNorth, dEast):
 
     newlat = original_location.lat + (dLat * 180/math.pi)
     newlon = original_location.lon + (dLon * 180/math.pi)
-    return LocationGlobal(newlat, newlon,original_location.alt)
+    return dronekit.LocationGlobal(newlat, newlon,original_location.alt)
