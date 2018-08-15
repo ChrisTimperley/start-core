@@ -38,6 +38,59 @@ def parse_command(s):
     return cmd
 
 
+@attr.s(frozen=True)
+class Oracle(object):
+    """
+    Describes the expected outcome of a mission execution.
+    """
+    num_waypoints_visited = attr.ib(type=int)
+    end_position = attr.ib(type=dronekit.LocationGlobal)
+
+    @staticmethod
+    def build(vehicle,              # type: dronekit.Vehicle
+              home,                 # type: Tuple[float, float, float, float]
+              enable_workaround     # type: bool
+              ):                    # type: (...) -> Oracle
+        num_wps = 0
+        home_loc = dronekit.LocationGlobal(home[0], home[1], home[2])
+        end_position = home_loc
+
+        for command in vehicle.commands:
+            # assumption: all commands use the same frame of reference
+            # TODO add assertion
+            command_id = command.command
+
+            # TODO tweak logic for copter/plane/rover
+            if command_id == 16: # MAV_CMD_NAV_WAYPOINT
+                end_position = \
+                    dronekit.LocationGlobal(command.x, command.y, command.z)
+                on_ground = False
+
+            elif command_id == 20: # MAV_CMD_NAV_RETURN_TO_LAUNCH:
+                end_position = home_loc
+                on_ground = True
+
+                # copter will ignore all commands after an RTL
+                if vehicle == 'ArduCopter':
+                    num_wps += 1
+                    break
+
+            # NOTE if the vehicle is instructed to land whilst already on the
+            #      ground, then the rest of the mission will be ignored.
+            elif command_id == 21 and enable_workaround and on_ground: # MAV_CMD_NAV_LAND
+                break
+
+            num_wps += 1
+
+        # first WP is completely ignored by ArduCopter
+        if vehicle == 'ArduCopter':
+            num_wps -= 1
+
+        oracle = Oracle(num_wps, end_position)
+        logging.debug("generated oracle: %s", oracle)
+        return oracle
+
+
 # @attr.s(frozen=True)
 class Mission(object):
     """
@@ -61,76 +114,11 @@ class Mission(object):
                 cmds.append(cmd)
         return Mission(vehicle, cmds, home)
 
-    # FIXME try to fold this into the constructor
-    def __generate_oracle(self,
-                          vehicle,              # type: dronekit.Vehicle
-                          enable_workaround     # type: bool
-                          ):                    # type: (...) -> None
-        """
-        Statically determines the expected end position of the vehicle from the
-        contents of the mission, as well as the (minimum) number of waypoints
-        that the vehicle is expected to visit. The results are stored in
-        `self.__expected_end_position` and `self.__expected_num_wps_visited`.
-
-        Parameters:
-            vehicle:        a connection to the vehicle under test.
-        """
-        self.__expected_end_position = self.home  # FIXME
-        self.__expected_num_wps_visited = 0
-        on_ground = True
-
-        for command in vehicle.commands:
-            # assumption: all commands use the same frame of reference
-            # TODO add assertion
-            command_id = command.command
-
-            # TODO tweak logic for copter/plane/rover
-            if command_id == 16: # MAV_CMD_NAV_WAYPOINT
-                self.__expected_end_position = \
-                    dronekit.LocationGlobal(command.x, command.y, command.z)
-                on_ground = False
-
-            elif command_id == 20: # MAV_CMD_NAV_RETURN_TO_LAUNCH:
-                self.__expected_end_position = self.home
-                on_ground = True
-
-                # copter will ignore all commands after an RTL
-                if self.vehicle == 'ArduCopter':
-                    self.__expected_num_wps_visited += 1
-                    break
-
-            # NOTE if the vehicle is instructed to land whilst already on the
-            #      ground, then the rest of the mission will be ignored.
-            elif command_id == 21 and enable_workaround and on_ground: # MAV_CMD_NAV_LAND
-                break
-
-            self.__expected_num_wps_visited += 1
-
-        # first WP is completely ignored by ArduCopter
-        if self.vehicle == 'ArduCopter':
-            self.__expected_num_wps_visited -= 1
-
     def __len__(self):
         """
         The length of the mission is given its number of commands.
         """
         return len(self.__commands)
-
-    @property
-    def expected_tokens(self):
-        """
-        The sequence of tokens that the vehicle is expected to produce during
-        this mission.
-        """
-        return self.__expected_tokens[:]
-
-    @property
-    def expected_end_position(self):
-        """
-        The expected end position of the vehicle upon completion of this
-        mission.
-        """
-        return self.__expected_end_position
 
     def issue(self,
               vehicle,              # type: dronekit.Vehicle
