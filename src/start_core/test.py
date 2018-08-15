@@ -76,7 +76,7 @@ def execute(sitl,                   # type: SITL
 
             # execute the mission
             return mission.execute(time_limit=timeout_mission,
-                                   vehicle=vehicle,
+                                   conn=vehicle,
                                    speedup=speedup,
                                    timeout_heartbeat=timeout_liveness,
                                    enable_workaround=enable_workaround,
