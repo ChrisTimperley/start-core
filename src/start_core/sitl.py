@@ -11,6 +11,7 @@ import signal
 import contextlib
 import logging
 
+import attr
 import configparser
 
 from .mission import Mission
