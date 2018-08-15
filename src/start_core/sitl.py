@@ -13,7 +13,6 @@ import logging
 
 import configparser
 
-from .scenario import Scenario
 from .mission import Mission
 from .exceptions import FileNotFoundException
 
