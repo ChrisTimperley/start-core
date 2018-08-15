@@ -9,11 +9,15 @@ import subprocess
 import os
 import signal
 import contextlib
+import logging
 
 import configparser
 
 from .scenario import Scenario
 from .exceptions import FileNotFoundException
+
+logger = logging.getLogger(__name__)  # type: logging.Logger
+logger.setLevel(logging.DEBUG)
 
 try:
     DEVNULL = subprocess.DEVNULL
@@ -31,20 +35,21 @@ class SITL(object):
     @staticmethod
     def from_scenario(scenario):
         # type: (Scenario) -> SITL
-        home = scenario.mission.home  # FIXME alias
         name_binary = ({
             'APMrover2': 'ardurover',
             'ArduCopter': 'arducopter',
             'ArduPlane': 'arduplane'
         })[scenario.mission.vehicle]
+        logging.debug("building SITL for scenario [%s]", scenario.name)
         dir_base = scenario.directory
         fn_binary = os.path.join(dir_base, 'build/sitl/bin', name_binary)
-        # FIXME allow a custom script to be used?
         fn_harness = os.path.join(dir_base, 'Tools/autotest/sim_vehicle.py')
-        return SITL(fn_binary,
+        sitl = SITL(fn_binary,
                     fn_harness,
                     scenario.vehicle,
-                    scenario.mission.home)
+                    scenario.mission.home)  # FIXME alias
+        logging.debug("built SITL for scenario [%s]: %s", scenario.name, sitl)
+        return sitl
 
     def command(self,
                 prefix=None,    # type: Optional[str]
@@ -80,13 +85,17 @@ class SITL(object):
         command = self.command(prefix, speedup)
         process = None  # type: Optional[subprocess.Popen]
         try:
+            logger.debug("launching SITL via command: %s", command)
             process = subprocess.Popen(command,
                                        shell=True,
                                        stdin=DEVNULL,
                                        stdout=DEVNULL,
                                        stderr=DEVNULL,
                                        preexec_fn=os.setsid)
+            logger.debug("launched SITL")
             yield
         finally:
             if process:
-                os.killpg(self.__process.pid, signal.SIGTERM)
+                logger.debug("sending SIGTERM to SITL process [%d]", process.pid)
+                os.killpg(process.pid, signal.SIGTERM)
+                logger.debug("sent SIGTERM to SITL process [%d]", process.pid)
