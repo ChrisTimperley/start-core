@@ -74,7 +74,7 @@ class Attacker(object):
             "--mavlog={}".format(self.__fn_mav.name)
         ]
 
-        if self.__script_flags != '':
+        if attack.flags != '':
             tokens = attack.flags.split(",")
             cmd.extend(tokens)
 
