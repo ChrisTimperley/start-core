@@ -6,9 +6,13 @@ import socket
 import os
 import tempfile
 import time
+import logging
 
 import attr
 import configparser
+
+logger = logging.getLogger(__name__)  # type: logging.Logger
+logger.setLevel(logging.DEBUG)
 
 
 @attr.s(frozen=True)
@@ -54,6 +58,7 @@ class Attacker(object):
         self.__process = None
 
     def prepare(self):  # type: () -> None
+        logger.debug("preparing attacker")
         attack = self.__attack
         self.__fn_log = tempfile.NamedTemporaryFile()
         self.__fn_mav = tempfile.NamedTemporaryFile()
@@ -78,47 +83,65 @@ class Attacker(object):
         cmd = ' '.join(cmd)
 
         # launch server
-        print(cmd)
+        logger.debug("launching attack server via command: %s", cmd)
         self.__process = subprocess.Popen(cmd,
                                           shell=True,
                                           preexec_fn=os.setsid)
                                           # stdout=subprocess.PIPE,
                                           # stderr=subprocess.STDOUT)
+        logger.debug("launched attack server")
 
         # connect
+        logger.debug("creating socket to attack server")
         self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         time.sleep(2) # TODO hacky?
+        logger.debug("connecting to attack server via socket")
         self.__socket .connect(("0.0.0.0", self.__port))
+        logger.debug("connected to attack server")
+        logger.debug("creating file via socket")
         self.__connection = self.__socket.makefile()
+        logger.debug("created file via socket")
+        logger.debug("attacker is prepared")
 
     def start(self):  # type: () -> None
+        logging.debug("sending START message to attack server")
         self.__connection.write("START\n")
         self.__connection.flush()
+        logging.debug("send START message to attack server")
 
     def stop(self):  # type: () -> None
+        logger.debug("stopping attacker")
         # close connection
         if self.__connection:
+            logger.debug("sending EXIT message to attack server")
             self.__connection.write("EXIT\n")
             self.__connection.flush()
             self.__connection.close()
             self.__connection = None
+            logger.debug("sent EXIT message to attack server and closed connection")
 
         # close socket
         if self.__socket:
+            logger.debug("closing attack server socket")
             self.__socket.close()
+            logger.debug("closed attack server socket")
             self.__socket = None
 
         # TODO why was there a timeout here?
 
-        # kill server
         if self.__process:
+            logger.debug("closing attack server process [%d] via SIGKILL",
+                         self.__process.pid)
             os.killpg(self.__process.pid, signal.SIGKILL) # FIXME use SIGTERM
             self.__process = None
+            logger.debug("closed attack server process")
 
         # destroy temporary files
         self.__fn_log = None
         self.__fn_mav = None
+
+        logger.debug("stopped attacker")
 
     def was_successful(self):  # type: () -> bool
         self.__connection.write("CHECK\n")
