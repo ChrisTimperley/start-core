@@ -66,7 +66,7 @@ class Attacker(object):
         cmd = [
             'python',
             attack.script,
-            "--master=udp:{}".format(self.__url_sitl),
+            "--master={}".format(self.__url_sitl),
             "--baudrate=115200",
             "--port={}".format(self.__port),
             "--report-timeout={}".format(self.__report),
