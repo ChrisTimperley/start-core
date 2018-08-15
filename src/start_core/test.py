@@ -19,17 +19,18 @@ logger = logging.getLogger(__name__)  # type: logging.Logger
 logger.setLevel(logging.DEBUG)
 
 
-# type: (str, bool)
-def execute(mission,                # type: Mission
+def execute(sitl,                   # type: SITL
+            mission,                # type: Mission
             attack=None,            # type: Optional[Attack]
             speedup=1,              # type: int
-            prefix='',
+            prefix='',              # type: str
             timeout_mission=240,    # type: int
             timeout_liveness=1,     # type: int
             timeout_connection=10,  # type: int
+            port_attacker=14300,    # type: int
             check_wps=False,        # type: bool
             enable_workaround=True  # type: bool
-            ):              # type: (...) -> Tuple[bool, str]
+            ):                      # type: (...) -> Tuple[bool, str]
     """
     Executes the test.
 
@@ -44,12 +45,9 @@ def execute(mission,                # type: Mission
         an optional string that is used to describe the reason for the
         test failure (if indeed there was a failure).
     """
-    trace = []  # FIXME
     vehicle = None
-    url_sitl = 'udp:127.0.0.1:14550'
-    sitl = SITL.from_scenario(scenario)  # FIXME
     if attack:
-        attacker = Attacker(attack, url_sitl, port)  # FIXME
+        attacker = Attacker(attack, sitl.url, port_attacker)
     else:
         attacker = None
 
@@ -60,8 +58,8 @@ def execute(mission,                # type: Mission
 
             # NOTE dronekit is broken!
             #      it always tries to connect to 127.0.0.1:5760
-            logging.debug("trying to connect to vehicle [%s]", url_sitl)
-            vehicle = dronekit.connect(url_sitl,
+            logging.debug("trying to connect to vehicle [%s]", sitl.url)
+            vehicle = dronekit.connect(sitl.url,
                                        wait_ready=False,
                                        heartbeat_timeout=timeout_connection)
             logging.debug("established connection with vehicle.")
@@ -84,8 +82,6 @@ def execute(mission,                # type: Mission
                                    timeout_heartbeat=timeout_liveness,
                                    enable_workaround=enable_workaround,
                                    check_wps=check_wps)
-
-    # FIXME nicer exception -- different kinds?
     except TimeoutException:
         return (False, "timeout occurred")
     finally:
