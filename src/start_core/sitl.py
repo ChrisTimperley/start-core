@@ -60,13 +60,12 @@ class SITL(object):
         """
         if prefix is None:
             prefix = ''
-
         cmd = [
             prefix,
             self.fn_harness,
             "--mavproxy-args '--daemon --out 127.0.0.1:14552 --out 127.0.0.1:14553'", # don't attach to STDIN!
-            "-l", "{},{},{},{}".format(*self.__home_loc),
-            "-v", self.__vehicle,
+            "-l", "{},{},{},{}".format(*self.home),
+            "-v", self.vehicle,
             "-w",
             "--speedup={}".format(speedup),
             "--no-rebuild "
