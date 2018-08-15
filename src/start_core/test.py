@@ -4,7 +4,6 @@ a given scenario.
 """
 __all__ = ['execute']
 
-from __future__ import print_function
 from typing import Tuple
 import logging
 
