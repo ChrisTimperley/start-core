@@ -121,7 +121,7 @@ class Mission(object):
         """
         The length of the mission is given its number of commands.
         """
-        return len(self.__commands)
+        return len(self.commands)
 
     def issue(self,
               conn,                 # type: dronekit.Vehicle
@@ -144,7 +144,10 @@ class Mission(object):
 
         # FIXME lift into constructor
         logging.debug("computing oracle for mission")
-        self.oracle = Oracle(conn, self.vehicle, self.home, enable_workaround)
+        self.oracle = Oracle.build(conn,
+                                   self.vehicle,
+                                   self.home,
+                                   enable_workaround)
         logging.debug("computed oracle for mission")
 
         logging.debug("uploading mission to vehicle")
@@ -217,9 +220,8 @@ class Mission(object):
         # monitor the mission
         mission_complete = [False]
         actual_num_wps_visited = [0]
-        expected_num_wps_visited = self.__expected_num_wps_visited
         is_copter = self.vehicle == 'ArduCopter'
-        pos_last = vehicle.location.global_frame
+        pos_last = conn.location.global_frame
         logging.debug("Vehicle is expected to visit at least %d WPs",
                       self.oracle.num_waypoints_visited)
 
