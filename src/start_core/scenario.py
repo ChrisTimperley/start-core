@@ -81,7 +81,9 @@ class Scenario(object):
             msg = msg.format(revision)
             raise UnsupportedRevisionException(msg)
 
-        attack = Attack(script='attack.py',  # FIXME
+        fn_attack = cfg.get('Attack', 'attack')
+        fn_attack = os.path.join(dir_cfg, fn_attack)
+        attack = Attack(script=fn_attack,
                         flags=cfg.get('Attack', 'script_flags'),
                         longitude=cfg.getfloat('Attack', 'longitude'),
                         latitude=cfg.getfloat('Attack', 'latitude'),
