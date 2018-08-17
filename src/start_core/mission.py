@@ -100,6 +100,7 @@ class Mission(object):
     """
     Describes a mission that may be assigned to an ArduPilot vehicle.
     """
+    filename = attr.ib(type=str)
     vehicle = attr.ib(type=str)  # FIXME use Enum?
     commands = attr.ib(type=List[dronekit.Command])
     home = attr.ib(type=Tuple[float, float, float, float])
@@ -115,7 +116,7 @@ class Mission(object):
             for line in lines[1:]:
                 cmd = parse_command(line)
                 cmds.append(cmd)
-        return Mission(vehicle, cmds, home)
+        return Mission(fn, vehicle, cmds, home)
 
     def __len__(self):
         """
