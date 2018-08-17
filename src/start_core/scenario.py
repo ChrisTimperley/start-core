@@ -37,6 +37,7 @@ class Scenario(object):
     """
     Provides an immutable description of a START defect scenario.
     """
+    filename = attr.ib(type=str)
     name = attr.ib(type=str)
     directory = attr.ib(type=str)
     sitl = attr.ib(type=SITL)
@@ -119,7 +120,8 @@ class Scenario(object):
             msg = "failed to locate vulnerability file: {}".format(fn_diff)
             raise FileNotFoundException(msg)
 
-        return Scenario(name=cfg.get('General', 'name'),
+        return Scenario(filename=fn,
+                        name=cfg.get('General', 'name'),
                         directory=dir_cfg,
                         sitl=sitl,
                         mission=mission,
