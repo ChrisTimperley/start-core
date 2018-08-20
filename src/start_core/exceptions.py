@@ -33,3 +33,9 @@ class TimeoutException(STARTException):
     """
     A timeout occurred during the execution of a mission.
     """
+
+class UnexpectedTestOutcome(STARTException):
+    """
+    A scenario produced an unexpected test result (i.e., the test failed when
+    it should have passed, or passed when it should have failed).
+    """
