@@ -276,8 +276,11 @@ class Mission(object):
                 logger.debug("ignoring visited waypoints")
 
             sat_wps = actual_num_wps_visited >= self.oracle.num_waypoints_visited
+            if not sat_wps:
+                logger.debug("vehicle failed to visit the minimum required number of WPs (%d vs. %d)",
+                             actual_num_wps_visited, self.oracle.num_waypoints_visited)
+
             if check_wps and not sat_wps:
-                logger.debug("vehicle failed to visit the minimum required number of WPs")
                 return (False, "vehicle didn't visit all of the WPs")
 
             state = observe(conn)
