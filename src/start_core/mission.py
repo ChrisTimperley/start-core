@@ -285,7 +285,7 @@ class Mission(object):
             dist = distance(self.oracle.end_position, pos_last)
             logger.debug("distance to expected end position: %.3f metres", dist)
 
-            if dist > self.oracle.max_distance:
+            if dist <= self.oracle.max_distance:
                 logger.debug("vehicle successfully executed the mission")
                 return (True, None)
             else:
