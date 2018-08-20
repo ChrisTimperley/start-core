@@ -57,22 +57,22 @@ def execute(sitl,                   # type: SITL
 
             # NOTE dronekit is broken!
             #      it always tries to connect to 127.0.0.1:5760
-            logging.debug("trying to connect to vehicle [%s]", sitl.url)
+            logger.debug("trying to connect to vehicle [%s]", sitl.url)
             vehicle = dronekit.connect(sitl.url,
                                        wait_ready=False,
                                        heartbeat_timeout=timeout_connection)
-            logging.debug("established connection with vehicle.")
-            logging.debug("waiting for vehicle to be ready.")
+            logger.debug("established connection with vehicle.")
+            logger.debug("waiting for vehicle to be ready.")
             vehicle.wait_ready(True, timeout=timeout_connection)
-            logging.debug("vehicle is ready for mission.")
+            logger.debug("vehicle is ready for mission.")
 
             # launch the attack, if one was provided
             if attacker:
-                logging.debug("launching attack on vehicle")
+                logger.debug("launching attack on vehicle")
                 attacker.start()
-                logging.debug("launched attack on vehicle")
+                logger.debug("launched attack on vehicle")
             else:
-                logging.debug("skipping attack launch: no attack provided.")
+                logger.debug("skipping attack launch: no attack provided.")
 
             # execute the mission
             return mission.execute(time_limit=timeout_mission,
@@ -85,10 +85,10 @@ def execute(sitl,                   # type: SITL
         return (False, "timeout occurred")
     finally:
         if attacker:
-            logging.debug("closing attack server")
+            logger.debug("closing attack server")
             attacker.stop()
-            logging.debug("closed attack server")
+            logger.debug("closed attack server")
         if vehicle:
-            logging.debug("closing connection to vehicle")
+            logger.debug("closing connection to vehicle")
             vehicle.close()
-            logging.debug("closed connection to vehicle")
+            logger.debug("closed connection to vehicle")
