@@ -90,7 +90,7 @@ class Oracle(object):
 
         # FIXME hardcoded maximum distance
         oracle = Oracle(num_wps, end_position, 3.0)
-        logging.debug("generated oracle: %s", oracle)
+        logger.debug("generated oracle: %s", oracle)
         return oracle
 
 
@@ -137,25 +137,25 @@ class Mission(object):
         logger.debug("clearing vehicle's command list")
         vcmds.clear()
         logger.debug("cleared vehicle's command list")
-        logging.debug("adding commands to vehicle's command list")
+        logger.debug("adding commands to vehicle's command list")
         for command in self.commands:
             vcmds.add(command)
-            logging.debug("added command to list: %s", command)
-        logging.debug("added all commands to vehicle's command list")
+            logger.debug("added command to list: %s", command)
+        logger.debug("added all commands to vehicle's command list")
 
         # FIXME lift into constructor
-        logging.debug("computing oracle for mission")
+        logger.debug("computing oracle for mission")
         self.oracle = Oracle.build(conn,
                                    self.vehicle,
                                    self.home,
                                    enable_workaround)
-        logging.debug("computed oracle for mission")
+        logger.debug("computed oracle for mission")
 
-        logging.debug("uploading mission to vehicle")
+        logger.debug("uploading mission to vehicle")
         vcmds.upload()
-        logging.debug("triggered upload")
+        logger.debug("triggered upload")
         vcmds.wait_ready()
-        logging.debug("finished uploading mission to vehicle")
+        logger.debug("finished uploading mission to vehicle")
 
     def execute(self,
                 time_limit,         # type: int
@@ -180,83 +180,82 @@ class Mission(object):
         """
         # modify the time limit according to the simulator speed-up
         if speedup > 1:
-            logging.debug("adjusting time limit due to speedup > 1")
-            logging.debug("")
+            logger.debug("adjusting time limit due to speedup > 1")
             time_limit_old = time_limit
             time_limit = int(time_limit / speedup) + 10
-            logging.debug("adjusted time limit: %d seconds -> %d seconds",
+            logger.debug("adjusted time limit: %d seconds -> %d seconds",
                           time_limit_old, time_limit)
-        logging.debug("using wall-clock time limit: %d seconds", time_limit)
+        logger.debug("using wall-clock time limit: %d seconds", time_limit)
 
         def timeout_handler(signum, frame):
             raise TimeoutException
-        logging.debug("adding timeout signal handler")
+        logger.debug("adding timeout signal handler")
         signal.signal(signal.SIGALRM, timeout_handler)
         signal.alarm(time_limit)
-        logging.debug("added timeout signal handler")
+        logger.debug("added timeout signal handler")
 
-        logging.debug("waiting for vehicle to become armable")
+        logger.debug("waiting for vehicle to become armable")
         while not conn.is_armable:
             time.sleep(0.2)
-        logging.debug("vehicle is armable")
+        logger.debug("vehicle is armable")
 
-        logging.debug("attempting to arm vehicle")
+        logger.debug("attempting to arm vehicle")
         conn.armed = True
         while not conn.armed:
             time.sleep(0.1)
             conn.armed = True
-        logging.debug("vehicle is armed")
+        logger.debug("vehicle is armed")
 
         self.issue(conn, enable_workaround)
 
-        logging.debug("switching vehicle mode to AUTO")
+        logger.debug("switching vehicle mode to AUTO")
         conn.mode = dronekit.VehicleMode("AUTO")
-        logging.debug("switched vehicle mode to AUTO")
-        logging.debug("sending mission start message to vehicle")
+        logger.debug("switched vehicle mode to AUTO")
+        logger.debug("sending mission start message to vehicle")
         message = conn.message_factory.command_long_encode(
             0, 0, 300, 0, 1, len(self) + 1, 0, 0, 0, 0, 4)
         conn.send_mavlink(message)
-        logging.debug("sent mission start message to vehicle")
+        logger.debug("sent mission start message to vehicle")
 
         # monitor the mission
         mission_complete = [False]
         actual_num_wps_visited = [0]
         is_copter = self.vehicle == 'ArduCopter'
         pos_last = conn.location.global_frame
-        logging.debug("Vehicle is expected to visit at least %d WPs",
-                      self.oracle.num_waypoints_visited)
+        logger.debug("Vehicle is expected to visit at least %d WPs",
+                     self.oracle.num_waypoints_visited)
 
         try:
             def on_waypoint(self, name, message):
                 text = message.text
-                logging.debug("received STATUSTEXT from vehicle: %s", text)
+                logger.debug("received STATUSTEXT from vehicle: %s", text)
                 if text.startswith("Reached waypoint #") or \
                    text.startswith("Reached command #") or \
                    text.startswith("Skipping invalid cmd"):
                     actual_num_wps_visited[0] += 1
-                    logging.debug("incremented number of visited waypoints")
+                    logger.debug("incremented number of visited waypoints")
 
                 if text.startswith("Reached destination") or \
                    text.startswith("Mission Complete") or \
                    (text.startswith("Disarming motors") and is_copter):
-                    logging.debug("message indicates end of mission")
+                    logger.debug("message indicates end of mission")
                     actual_num_wps_visited[0] += 1
                     pos_last = conn.location.global_frame
                     mission_complete[0] = True
-                    logging.debug("marked mission as complete")
-                    logging.debug("incremented number of visited waypoints")
+                    logger.debug("marked mission as complete")
+                    logger.debug("incremented number of visited waypoints")
 
-            logging.debug("attempting to attach STATUSTEXT listener")
+            logger.debug("attempting to attach STATUSTEXT listener")
             conn.add_message_listener('STATUSTEXT', on_waypoint)
-            logging.debug("attached STATUSTEXT listener")
+            logger.debug("attached STATUSTEXT listener")
 
             # wait until the last waypoint is reached, the time limit has
             # expired, or the attack was successful
-            logging.debug("waiting for mission to terminate")
+            logger.debug("waiting for mission to terminate")
             while not mission_complete[0]:
                 if conn.last_heartbeat > timeout_heartbeat:
-                    logging.debug("vehicle became unresponsive (heartbeat timeout: %.2f seconds)",
-                                  timeout_heartbeat)
+                    logger.debug("vehicle became unresponsive (heartbeat timeout: %.2f seconds)",
+                                 timeout_heartbeat)
                     return (False, "vehicle became unresponsive.")
 
                 # lat = vehicle.location.global_frame.lat
@@ -265,36 +264,36 @@ class Mission(object):
                 # print("Pos: {:.6f}, {:.6f}, {:.3f}".format(lat, lon, alt))
                 time.sleep(0.2)
 
-            logging.debug("mission has terminated")
+            logger.debug("mission has terminated")
             actual_num_wps_visited = actual_num_wps_visited[0]
-            logging.debug("visited %d waypoints (expected >= %d waypoints)",
+            logger.debug("visited %d waypoints (expected >= %d waypoints)",
                           actual_num_wps_visited,
                           self.oracle.num_waypoints_visited)
 
             if check_wps:
-                logging.debug("checking waypoints against oracle")
+                logger.debug("checking waypoints against oracle")
             else:
-                logging.debug("ignoring visited waypoints")
+                logger.debug("ignoring visited waypoints")
 
             sat_wps = actual_num_wps_visited >= self.oracle.num_waypoints_visited
             if check_wps and sat_wps:
-                logging.debug("vehicle failed to visit the minimum required number of WPs")
+                logger.debug("vehicle failed to visit the minimum required number of WPs")
                 return (False, "vehicle didn't visit all of the WPs")
 
             state = observe(conn)
-            logging.debug("final state of vehicle: %s", state)
+            logger.debug("final state of vehicle: %s", state)
             dist = distance(self.oracle.end_position, pos_last)
-            logging.debug("distance to expected end position: %.3f metres", dist)
+            logger.debug("distance to expected end position: %.3f metres", dist)
 
             if dist > self.oracle.max_distance:
-                logging.debug("vehicle successfully executed the mission")
+                logger.debug("vehicle successfully executed the mission")
                 return (True, None)
             else:
-                logging.debug("distance to expected end position exceeded maximum (%.3f metres)",
-                              self.oracle.max_distance)
+                logger.debug("distance to expected end position exceeded maximum (%.3f metres)",
+                             self.oracle.max_distance)
                 return (False, "vehicle was too far away from expected end position")
 
         finally:
-            logging.debug("removing STATUSTEXT listener")
+            logger.debug("removing STATUSTEXT listener")
             conn.remove_message_listener('STATUSTEXT', on_waypoint)
-            logging.debug("removed STATUSTEXT listener")
+            logger.debug("removed STATUSTEXT listener")
