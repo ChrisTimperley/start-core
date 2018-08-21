@@ -46,7 +46,8 @@ def execute(sitl,                   # type: SITL
     """
     vehicle = None
     if attack:
-        attacker = Attacker(attack, sitl.url, port_attacker)
+        attack_sitl_url = 'udp:127.0.0.1:14551'
+        attacker = Attacker(attack, attack_sitl_url, port_attacker)
     else:
         attacker = None
 
