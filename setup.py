@@ -20,8 +20,8 @@ setuptools.setup(
     install_requires=[
         'configparser',
         'attrs',
-        'dronekit',
-        'pymavlink>=2.2.10',
+        # 'dronekit',
+        # 'pymavlink>=2.2.10',
         'typing'
     ],
     include_package_data=True,
