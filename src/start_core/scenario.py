@@ -31,6 +31,21 @@ SUPPORTED_REVISIONS = [
     'b622fe1'
 ]
 
+BRANCH_TO_REVISION = {
+    'Sept-demo-cca9a6e-April-21': 'cca9a6e',
+    'Sept-demo-c99cc46-May-18': 'c99cc46',
+    'Sept-demo-b622fe1-June-27': 'b622fe1',
+    'Sept-demo-b5467be-Jan-17': 'b5467be',
+    'Sept-demo-4e8399c-Feb-19': '4e8399c',
+    'Sept-demo-4ab2ff8-March-11': '4ab2ff8',
+    'Sept-demo-3ee064d-June-12': '3ee064d',
+    'Sept-demo-2b49a3a-April-11': '2b49a3a',
+    'Sept-demo-21abe11-March-9': '21abe11',
+    'Sept-demo-1e05804-May-25': '1e05804',
+    'Sept-demo-0626d10-Jan-29': '0626d10',
+    'Sept-demo-368698d-Jan-4': '368698d'
+}
+
 
 @attr.s(frozen=True)
 class Scenario(object):
@@ -77,6 +92,8 @@ class Scenario(object):
         fn_diff = os.path.join(dir_cfg, cfg.get("General", "vulnerability"))
 
         revision = cfg.get("General", "revision")
+        if revision in BRANCH_TO_REVISION:
+            revision = BRANCH_TO_REVISION[revision]
         if revision not in SUPPORTED_REVISIONS:
             msg = "unsupported ArduPilot source code revision: {}"
             msg = msg.format(revision)
