@@ -2,6 +2,10 @@ __all__ = ['Scenario']
 
 import os
 import logging
+import shutil
+import tempfile
+import subprocess
+from contextlib import contextmanager
 
 import attr
 import configparser
@@ -145,3 +149,62 @@ class Scenario(object):
                         attack=attack,
                         diff_fn=fn_diff,
                         revision=revision)
+
+    @contextmanager
+    def build(filename_patch=None):
+        """
+        Copies the source code for this scenario to a temporary directory
+        before optionally applying a patch, and building its SITL binary.
+
+        Returns:
+            a SITL object that provides access to the binary
+        """
+        # type: (str) -> SITL
+        logger.debug("building scenario: %s", self.name)
+        if filename_patch:
+            logger.debug("applying patch: %s", filename_patch)
+
+        dir_ctx = tempfile.mkdtemp()
+        try:
+            logger.debug("using temporary build context: %s", dir_ctx)
+            logger.debug("copying files to build context")
+            shutil.copytree(self.source, dir_ctx)
+            logger.debug("copied files to build context")
+
+            logger.debug("destroying git index")
+            cmd = ' && '.join([
+                "rm -rf .git",
+                "find . -name .git -delete",
+                "git init",
+                "git add waf",
+                "git commit -m 'borked'",
+            ])
+            subprocess.check_call(cmd, cwd=dir_ctx)
+            logger.debug("destroyed git index")
+
+            if filename_patch:
+                logger.debug("applying patch")
+                cmd = "patch -p0 -i '{}'".format(filename_patch)
+                subprocess.check_call(cmd, cwd=dir_ctx)
+                logger.debug("applied patch")
+
+            logger.debug("building binary")
+            cmd = ({
+                'APMrover2': 'rover',
+                'ArduCopter': 'copter',
+                'ArduPlane': 'arduplane'
+            })[self.mission.vehicle]
+            cmd = ' && '.join([
+                "./waf configure --no-submodule-update",
+                "./waf {}".format(cmd)
+            ])
+            subprocess.check_call(cmd, shell=True, cwd=dir_ctx)
+            logger.debug("built binary")
+
+            fn_harness = os.path.join(dir_ctx, 'Tools/autotest/sim_vehicle.py')
+            sitl = SITL(fn_harness, self.mission.vehicle, self.mission.home)
+            yield sitl
+        finally:
+            logger.debug("destroying temporary build context: %s", dir_ctx)
+            shutil.rmtree(dir_ctx, ignore_errors=True)
+            logger.debug("destroyed temporary build context: %s", dir_ctx)
