@@ -151,7 +151,7 @@ class Scenario(object):
                         revision=revision)
 
     @contextmanager
-    def build(filename_patch=None):
+    def build(self, filename_patch=None):
         """
         Copies the source code for this scenario to a temporary directory
         before optionally applying a patch, and building its SITL binary.
