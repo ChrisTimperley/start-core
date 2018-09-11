@@ -172,10 +172,10 @@ class Scenario(object):
         try:
             logger.debug("using temporary build context: %s", dir_ctx)
             logger.debug("copying files to build context")
+            os.rmdir(dir_ctx)
             shutil.copytree(dir_original, dir_ctx)
             logger.debug("copied files to build context")
 
-            logger.debug("destroying git index")
             cmd = ' && '.join([
                 "rm -rf .git",
                 "find . -name .git -delete",
@@ -183,16 +183,16 @@ class Scenario(object):
                 "git add waf",
                 "git commit -m 'borked'",
             ])
-            subprocess.check_call(cmd, cwd=dir_ctx)
+            logger.debug("destroying git index: %s", cmd)
+            subprocess.check_call(cmd, shell=True, cwd=dir_ctx)
             logger.debug("destroyed git index")
 
             if filename_patch:
-                logger.debug("applying patch")
                 cmd = "patch -p0 -i '{}'".format(filename_patch)
+                logger.debug("applying patch: %s", cmd)
                 subprocess.check_call(cmd, cwd=dir_ctx)
                 logger.debug("applied patch")
 
-            logger.debug("building binary")
             cmd = ({
                 'APMrover2': 'rover',
                 'ArduCopter': 'copter',
@@ -202,6 +202,7 @@ class Scenario(object):
                 "./waf configure --no-submodule-update",
                 "./waf {}".format(cmd)
             ])
+            logger.debug("building binary: %s", cmd)
             subprocess.check_call(cmd, shell=True, cwd=dir_ctx)
             logger.debug("built binary")
 
