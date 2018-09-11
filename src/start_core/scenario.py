@@ -164,11 +164,15 @@ class Scenario(object):
         if filename_patch:
             logger.debug("applying patch: %s", filename_patch)
 
+        # FIXME this is a hack that works with our existing scenarios but
+        #    relies on the source directory being named "vulnerable_ardupilot".
+        dir_original = os.path.join(self.directory, 'vulnerable_ardupilot')
+
         dir_ctx = tempfile.mkdtemp()
         try:
             logger.debug("using temporary build context: %s", dir_ctx)
             logger.debug("copying files to build context")
-            shutil.copytree(self.source, dir_ctx)
+            shutil.copytree(dir_original, dir_ctx)
             logger.debug("copied files to build context")
 
             logger.debug("destroying git index")
