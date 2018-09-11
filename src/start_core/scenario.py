@@ -151,7 +151,10 @@ class Scenario(object):
                         revision=revision)
 
     @contextmanager
-    def build(self, filename_patch=None):
+    def build(self,
+              dir_ardupilot,        # type: str
+              filename_patch=None   # type: Optional[str]
+              ):                    # type: (...) -> SITL
         """
         Copies the source code for this scenario to a temporary directory
         before optionally applying a patch, and building its SITL binary.
@@ -159,38 +162,35 @@ class Scenario(object):
         Returns:
             a SITL object that provides access to the binary
         """
-        # type: (str) -> SITL
         logger.debug("building scenario: %s", self.name)
         if filename_patch:
             logger.debug("applying patch: %s", filename_patch)
-
-        # FIXME this is a hack that works with our existing scenarios but
-        #    relies on the source directory being named "vulnerable_ardupilot".
-        dir_original = os.path.join(self.directory, 'vulnerable_ardupilot')
 
         dir_ctx = tempfile.mkdtemp()
         try:
             logger.debug("using temporary build context: %s", dir_ctx)
             logger.debug("copying files to build context")
             os.rmdir(dir_ctx)
-            shutil.copytree(dir_original, dir_ctx)
+            shutil.copytree(dir_ardupilot, dir_ctx, symlinks=True)
             logger.debug("copied files to build context")
 
             cmd = ' && '.join([
-                "rm -rf .git",
-                "find . -name .git -delete",
-                "git init",
-                "git add waf",
-                "git commit -m 'borked'",
+                'git checkout {}'.format(self.revision),
+                'git submodule update --init --recursive'
             ])
-            logger.debug("destroying git index: %s", cmd)
+            logger.debug("preparing base version: %s", cmd)
             subprocess.check_call(cmd, shell=True, cwd=dir_ctx)
-            logger.debug("destroyed git index")
+            logger.debug("prepared base version")
+
+            logger.debug("injecting vulnerability: %s", cmd)
+            cmd = "patch -p1 -i '{}'".format(self.diff_fn)
+            subprocess.check_call(cmd, shell=True, cwd=dir_ctx)
+            logger.debug("injected vulnerability")
 
             if filename_patch:
-                cmd = "patch -p0 -i '{}'".format(filename_patch)
+                cmd = "patch -p1 -i '{}'".format(filename_patch)
                 logger.debug("applying patch: %s", cmd)
-                subprocess.check_call(cmd, cwd=dir_ctx)
+                subprocess.check_call(cmd, shell=True, cwd=dir_ctx)
                 logger.debug("applied patch")
 
             cmd = ({
